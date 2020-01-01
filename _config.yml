@@ -3,9 +3,9 @@
 # Site wide configuration
 ####################################
 #
-title: Leonids
-email:
-description: A simple and awesome blog theme powered by jekyll.
+title: Seulki Lim
+email: bloomspes@gmail.com
+description: Technical blogs of experiences and learning from outside. 
 url: # the base hostname & protocol for your site
 keywords: ["blog", "jekyll"]
 
@@ -33,10 +33,10 @@ kramdown:
 ####################################
 #
 owner:
-  name: Leonids
+  name: Seulki Lim
   avatar: leonids-logo.png
-  job: "A jekyll theme"
-  bio: "A simple and awesome blog theme powered by jekyll."
+  job: "A Software Engineer"
+  bio: "Technical blogs of experiences and learning from outside."
   email:
   disqus-shortname:
   twitter: #username
