@@ -1,272 +1,52 @@
 #!/usr/bin/env node
 
-const YAML = require('yamljs');
 const fs = require('fs');
-const list = [];
+const path = require('path');
+const OUTPUT_DIRECTORIES = ['./data/tag', './data/metadata'];
+const files = [...getMarkdownFiles('./_wiki', 'wiki'), ...getMarkdownFiles('./_posts', 'blog')];
+const pages = files.map(readPage).filter(page => page.public !== 'false');
+const pageMap = Object.fromEntries(pages.map(page => [page.fileName, {
+    type: page.type, title: page.title, summary: page.summary, parent: page.parent,
+    url: page.url, updated: page.updated || page.date, children: []
+}]));
+
+for (const page of pages) {
+    if (page.parent && page.parent !== 'index' && pageMap[page.parent]) pageMap[page.parent].children.push(page.fileName);
+}
+for (const directory of OUTPUT_DIRECTORIES) fs.rmSync(directory, {recursive: true, force: true});
+for (const directory of OUTPUT_DIRECTORIES) fs.mkdirSync(directory, {recursive: true});
+
 const tagMap = {};
-const pageMap = {};
-
-getFiles('./_wiki', 'wiki', list);
-getFiles('./_posts', 'blog', list);
-
-const dataList = list.map(file => collectData(file))
-    .filter((row) => row != null)
-    .filter((row) => row.public != 'false')
-    .sort(lexicalOrderingBy('fileName'))
-
-
-dataList.forEach(function collectTagMap(data) {
-    if (!data.tag) {
-        return;
-    }
-
-    data.tag.forEach(tag => {
-        if (!tagMap[tag]) {
-            tagMap[tag] = [];
-        }
-        tagMap[tag].push({
-            fileName: data.fileName,
-            // updated: data.updated || data.date,
-        });
-    });
-});
-
-for (const tag in tagMap) {
-    tagMap[tag].sort(lexicalOrderingBy('fileName'));
+for (const page of pages) for (const tag of page.tag || []) (tagMap[tag] ||= []).push(page.fileName);
+for (const [tag, ids] of Object.entries(tagMap)) fs.writeFileSync(`./data/tag/${encodeURIComponent(tag)}.json`, JSON.stringify(ids.sort(compare)));
+fs.writeFileSync('./data/tag_count.json', JSON.stringify(Object.entries(tagMap).map(([name, ids]) => ({name, size: ids.length})).sort((a, b) => compare(a.name, b.name)), null, 1));
+for (const page of Object.values(pageMap)) {
+    const output = `./data/metadata/${page.url.replace(/^\/wiki\//, '')}.json`;
+    fs.mkdirSync(path.dirname(output), {recursive: true});
+    fs.writeFileSync(output, JSON.stringify(page));
 }
 
-dataList.sort(lexicalOrderingBy('fileName'))
-    .forEach((page) => {
-        pageMap[page.fileName] =
-            {
-                type: page.type,
-                title: page.title,
-                summary: page.summary,
-                parent: page.parent,
-                url: page.url,
-                updated: page.updated || page.date,
-                children: [],
-            };
-    });
-
-dataList.forEach(page => {
-    if (page.parent && page.parent != 'index') {
-
-        const parent = pageMap[page.parent];
-
-        if (parent && parent.children) {
-            parent.children.push(page.fileName);
-        }
-    }
-});
-
-saveTagFiles(tagMap, pageMap);
-saveTagCount(tagMap);
-saveMetaDataFiles(pageMap);
-
-function lexicalOrderingBy(property) {
-    return (a, b) => a[property].toLowerCase()
-        .localeCompare(b[property].toLowerCase())
-}
-
-/**
- * tag 하나의 정보 파일을 만든다.
- * 각 태그 하나는 하나의 json 파일을 갖게 된다.
- * 예를 들어 math 라는 태그가 있다면 ./data/tag/math.json 파일이 만들어진다.
- * json 파일의 내용은 fileName과 collection으로 구성된다.
- * 다음은 GNU.json 파일의 예이다.
- *
-{
-  "fileName": "agile",
-  "collection": {
-    "agile": {
-      "type": "wiki",
-      "title": "애자일(agile)에 대한 토막글 모음",
-      "summary": "",
-      "parent": "software-engineering",
-      "url": "/wiki/agile",
-      "updated": "2020-01-20 21:57:44 +0900",
-      "children": []
-    },
-    "Tompson-s-rule-for-first-time-telescope-makers": {
-      "type": "wiki",
-      "title": "망원경 규칙 (Telescope Rule)",
-      "summary": "4인치 반사경을 만든 다음에 6인치 반사경을 만드는 것이, 6인치 반사경 하나 만드는 것보다 더 빠르다",
-      "parent": "proverb",
-      "url": "/wiki/Tompson-s-rule-for-first-time-telescope-makers",
-      "updated": "2019-11-24 09:36:53 +0900",
-      "children": []
-    }
-  }
-}
-*/
-
-function saveTagFiles(tagMap, pageMap) {
-    fs.mkdirSync('./data/tag', { recursive: true }, (err) => {
-        if (err) {
-            return console.log(err);
-        }
-    })
-
-    const completedTags = {};
-
-    for (const tag in tagMap) {
-        if (completedTags[tag.toLowerCase()]) {
-            console.log("중복 태그가 있습니다.", tag);
-            break;
-        }
-        completedTags[tag.toLowerCase()] = true;
-
-        const collection = [];
-        const tagDatas = tagMap[tag];
-
-        for (const index in tagDatas) {
-            const tagData = tagDatas[index];
-            const data = pageMap[tagData.fileName]
-
-            const documentId = (data.type === 'wiki')
-                ? tagData.fileName
-                : data.url;
-
-            collection.push(documentId);
-        }
-
-        fs.writeFile(`./data/tag/${tag}.json`, JSON.stringify(collection), err => {
-            if (err) {
-                return console.log(err);
-            }
-        });
-    }
-}
-
-/**
- * 파일 하나의 정보 파일을 만든다.
- * 각 파일 하나는 자신만의 정보를 갖는 json 파일을 갖게 된다.
- * 예를 들어 math.md 라는 파일이 있다면 ./data/metadata/math.json 파일이 만들어진다.
- * json 파일의 내용은 자신의 metadata와 자식 문서들의 목록이 된다.
- */
-function saveMetaDataFiles(pageMap) {
-    for (const page in pageMap) {
-        const data = pageMap[page];
-        const fileName = data.url.replace(/^[/]wiki[/]/, '');
-        const dirName = `./data/metadata/${fileName}`
-            .replace(/(\/\/)/g, '/')
-            .replace(/[/][^/]*$/, '');
-
-        fs.mkdirSync(dirName, { recursive: true }, (err) => {
-            if (err) {
-                return console.log(err);
-            }
-        })
-
-        fs.writeFile(`./data/metadata/${fileName}.json`, JSON.stringify(data), err => {
-            if (err) {
-                return console.log(err);
-            }
-        })
-    }
-}
-
-/**
- * 태그 하나가 갖는 자식 문서의 수를 파일로 저장한다.
- */
-function saveTagCount(tagMap) {
-    const list = [];
-    for (const tag in tagMap) {
-        list.push({
-            name: tag,
-            size: tagMap[tag].length
-        });
-    }
-    const sortedList = list.sort((lexicalOrderingBy('name')));
-
-    fs.writeFile("./data/tag_count.json", JSON.stringify(sortedList, null, 1), function(err) {
-        if (err) {
-            return console.log(err);
-        }
-        console.log("tag_count.json saved.");
+function getMarkdownFiles(directory, type) {
+    return fs.readdirSync(directory, {withFileTypes: true}).flatMap(entry => {
+        const filePath = path.join(directory, entry.name);
+        if (entry.isDirectory()) return getMarkdownFiles(filePath, type);
+        return entry.name.endsWith('.md') ? [{path: filePath, type}] : [];
     });
 }
-
-function parseInfo(file, info) {
-    if (info === null) {
-        return undefined;
+function readPage(file) {
+    const content = fs.readFileSync(file.path, 'utf8');
+    const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/);
+    if (!match) throw new Error(`${file.path}: YAML front matter is required`);
+    const metadata = {};
+    for (const line of match[1].split('\n')) {
+        const item = line.match(/^\s*([^:#]+):\s*(.*?)\s*$/);
+        if (item) metadata[item[1].trim()] = item[2].trim().replace(/^['"]|['"]$/g, '');
     }
-
-    const obj = {
-        fileName: file.path.replace(/^\.\/_wiki\/(.+)?\.md$/, '$1'),
-        type: file.type,
-        url: '',
-        modified: fs.statSync(file.path).mtime
-    };
-
-    const rawData = info.split('\n');
-
-    rawData.forEach(str => {
-        const result = /^\s*([^:]+):\s*(.+)\s*$/.exec(str);
-
-        if (result == null) {
-            return;
-        }
-
-        const key = result[1].trim();
-        const val = result[2].trim()
-            .replace(/\[{2}\/?|\]{2}/g, '')    // 문서 이름 앞뒤의 [[  ]], [[/ ]] 를 제거한다.
-        ;
-
-        obj[key] = val;
-    });
-
-    if (file.type === 'blog') {
-        obj.url = '/blog/' + obj.date.replace(/^(\d{4})-(\d{2})-(\d{2}).*$/, '$1/$2/$3/');
-        obj.url += obj.fileName.replace(/^.*[/]\d{4}-\d{2}-\d{2}-([^/]*)\.md$/, '$1');
-
-    } else if (file.type === 'wiki') {
-        obj.url = file.path
-            .replace(/^\.\/_wiki/, '/wiki')
-            .replace(/\.md$/, '');
-    }
-
-    if (obj.tag) {
-        obj.tag = obj.tag.split(/\s+/);
-    }
-    return obj;
+    const root = file.type === 'wiki' ? './_wiki' : './_posts';
+    const relative = path.relative(root, file.path).replace(/\.md$/, '');
+    const fileName = file.type === 'wiki' ? relative : relative.replace(/^\d{4}-\d{2}-\d{2}-/, '');
+    return {...metadata, type: file.type, fileName,
+        url: file.type === 'wiki' ? `/wiki/${relative}` : `/blog/${metadata.date.slice(0, 10).replaceAll('-', '/')}/${fileName}`,
+        tag: metadata.tag ? metadata.tag.split(/\s+/) : []};
 }
-
-function isDirectory(path) {
-    return fs.lstatSync(path).isDirectory();
-}
-
-function isMarkdown(fileName) {
-    return /\.md$/.test(fileName);
-}
-
-function getFiles(path, type, array, testFileList = null) {
-
-    fs.readdirSync(path).forEach(fileName => {
-
-        const subPath = `${path}/${fileName}`;
-
-        if (isDirectory(subPath)) {
-            return getFiles(subPath, type, array, testFileList);
-        }
-        if (isMarkdown(fileName)) {
-            if(testFileList && !testFileList.includes(fileName)) {
-                return;
-            }
-
-            const obj = {
-                'path': `${path}/${fileName}`,
-                'type': type,
-                'name': fileName,
-                'children': [],
-            };
-            return array.push(obj);
-        }
-    });
-}
-
-function collectData(file) {
-    const data = fs.readFileSync(file.path, 'utf8');
-    return parseInfo(file, data.split('---')[1]);
-}
+function compare(a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); }
