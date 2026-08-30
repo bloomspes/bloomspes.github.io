@@ -52,8 +52,8 @@ giscus:
   category: General
   category_id: DIC_kwDOGD0e284CTxcp
  
-blame: "https://github.com/bloomspes/bloomspes.github.io/blame/master/_wiki"
-edit: "https://github.com/bloomspes/bloomspes.github.io/edit/master/_wiki"
+blame: "https://github.com/bloomspes/bloomspes.github.io/blame/main/_wiki"
+edit: "https://github.com/bloomspes/bloomspes.github.io/edit/main/_wiki"
 issue: "https://github.com/bloomspes/bloomspes.github.io/issues/new"
 
 timezone: "Asia/Seoul"

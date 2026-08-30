@@ -1,5 +1,5 @@
 {
-  "name": "johngrib.github.io",
+  "name": "bloomspes.github.io",
   "version": "1.0.0",
   "description": "data generator",
   "main": "generateData.js",
@@ -13,12 +13,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/johngrib/johngrib.github.io.git"
+    "url": "git+https://github.com/bloomspes/bloomspes.github.io.git"
   },
-  "author": "John Grib",
+  "author": "Spes Lim",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/johngrib/johngrib.github.io/issues"
+    "url": "https://github.com/bloomspes/bloomspes.github.io/issues"
   },
-  "homepage": "https://github.com/johngrib/johngrib.github.io#readme"
+  "homepage": "https://github.com/bloomspes/bloomspes.github.io#readme"
 }
