@@ -45,9 +45,9 @@
 
                     const data = resp.data;
                     const updated = data.updated.replace(/^(\d{4}-\d{2}-\d{2}).*/, '$1');
-                    const title = `<span>${data.title}</span>`
+                    const title = `<span>${escapeHTML(data.title)}</span>`
                     const date = `<div class="post-meta" style="float: right;">${updated}</div>`;
-                    const summary = (data.summary) ? `<div class="post-excerpt"> - ${data.summary}</div>` : '';
+                    const summary = (data.summary) ? `<div class="post-excerpt"> - ${escapeHTML(data.summary)}</div>` : '';
 
                     // 서브 문서들의 정보
                     const subDoc = (data.children && data.children.length > 0) ? `<div class="post-sub-document"> - 서브 문서: ${data.children.length} 개</div>` : '';
@@ -59,5 +59,10 @@
                 });
 
         }
+    }
+    function escapeHTML(value) {
+        const node = document.createElement('span');
+        node.textContent = value || '';
+        return node.innerHTML;
     }
 })();

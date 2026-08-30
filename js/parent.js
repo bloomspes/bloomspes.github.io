@@ -17,7 +17,7 @@
         }
         var pr = "상위 문서: "
         for (var i = 0; i < plist.length; i++) {
-            pr += `<a href="${plist[i].url}">${plist[i].title}</a>`;
+            pr += `<a href="${plist[i].url}">${escapeHTML(plist[i].title)}</a>`;
             if (i < plist.length - 1) {
                 pr += `<span> / </span>`;
             }
@@ -48,5 +48,10 @@
                 setTimeout(() => insertParent(data.parent, recursiveCount + 1, parentList), 0);
                 return;
             });
+    }
+    function escapeHTML(value) {
+        const node = document.createElement('span');
+        node.textContent = value || '';
+        return node.innerHTML;
     }
 })();
