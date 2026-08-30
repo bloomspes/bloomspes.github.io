@@ -8,7 +8,8 @@
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo no test found"
+    "generate:data": "node generateData.js",
+    "test": "node generateData.js && git diff --exit-code -- data"
   },
   "repository": {
     "type": "git",
