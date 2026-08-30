@@ -1,6 +1,7 @@
-jekyll:
-    image: jekyll/jekyll
-    command: jekyll serve --watch
+services:
+  jekyll:
+    image: jekyll/jekyll:4.3.4
+    command: bundle exec jekyll serve --watch --host 0.0.0.0
     ports:
         - 4000:4000
     volumes:
